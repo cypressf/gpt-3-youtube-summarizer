@@ -38,7 +38,7 @@ Top 10 Happy Meal Toy Fails
 # Setup
 Install dependencies.
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
 Create a file called `secret.toml` in the directory. It should look like this:
 ```toml
