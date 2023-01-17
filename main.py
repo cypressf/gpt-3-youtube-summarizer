@@ -12,12 +12,14 @@ import os
 
 # Enum for different types of articles
 class TitleType(Enum):
-    TOP_10 =    0
-    TOP_15 =    1
-    TOP_20 =    2
+    TOP_10 = 0
+    TOP_15 = 1
+    TOP_20 = 2
     EXPLAINED = 3
-    QUESTION =  4
-    GENERAL =   5
+    QUESTION = 4
+    GENERAL = 5
+    TOP_5 = 6
+
 
 output_example = """
 Top 10 Shark Tank Products the Sharks Regret Taking
@@ -33,13 +35,15 @@ Top 10 Shark Tank Products the Sharks Regret Taking
 10. Breathometer: A smartphone-compatible breathalyzer. The product was discontinued and the company was required to refund customers who had purchased it.
 """
 
+
 def load_secret(path="."):
     path = f"{path}/secret.toml"
     with open(path, "r") as f:
         keys = toml.loads(f.read())
-        openai.api_key = keys['openai-key']
+        openai.api_key = keys["openai-key"]
 
-def title_to_prompt(title:str, title_type:TitleType=TitleType.GENERAL):
+
+def title_to_prompt(title: str, title_type: TitleType = TitleType.GENERAL):
 
     if title_type == TitleType.TOP_10:
         return f"Summarize the following transcript of a video titled '{title}' into to a numbered list.\nInclude a short description for each item."
@@ -53,34 +57,16 @@ def title_to_prompt(title:str, title_type:TitleType=TitleType.GENERAL):
         return f"Summarize the following transcript of a video so it answers the question '{title}' in fewer than 200 words."
     elif title_type == TitleType.GENERAL:
         return f"Summarize the following transcript of a video, titled '{title}', to fewer than 200 words."
+    elif title_type == TitleType.TOP_5:
+        return f"Summarize the following transcript of a 'top 5' video titled '{title}' to a list.\nInclude a short description for each item."
 
-# Find all tokens of form "number [number word]" or "[int]." in the string
-# and add a colon and a newline to the end of each token
-def preproc_top10(text):
-    # regex for phrases like "number one"
-    exp_1 = r"(number (one|two|three|four|five|six|seven|eight|nine|ten))"
-    # regex for phrases like "number 10"
-    exp_2 = r"(number \d+)"
-    # regex for phrases like "10."
-    exp_3 = r"(\d+\.)"
 
-    # replace all matches of regex with colon and newline
-    text = re.sub(exp_1, r"--------\n\1:\n", text)
-    text = re.sub(exp_2, r"--------\n\1:\n", text)
-    text = re.sub(exp_3, r"--------\n\1:\n", text)
-    return text
-
-def preproc_by_type(text:str, title_type:TitleType):
-    # if title_type == TitleType.TOP_10:
-    #     return preproc_top10(text)
-    # else:
-    return text
-
-def example_by_type(title_type:TitleType):
+def example_by_type(title_type: TitleType):
     if title_type == TitleType.TOP_10:
         return f"\nExample Output:\n{output_example}\n"
     else:
         return ""
+
 
 def gpt3_summarize(title, title_type, text):
     prompt = title_to_prompt(title, title_type)
@@ -89,51 +75,46 @@ def gpt3_summarize(title, title_type, text):
 
     print(f"Querying OpenAI for summary of '{title}'...")
     result = openai.Completion.create(
-        engine="text-davinci-002",
-        temperature=0, max_tokens=512,   
-        prompt=ask_text
+        engine="text-davinci-002", temperature=0, max_tokens=512, prompt=ask_text
     )
     print(f"Done!")
-    return ask_text, result.choices[0]['text']
+    return ask_text, result.choices[0]["text"]
+
 
 def gpt3_summarize_cont(title, title_type, text, summary):
-    prompt = title_to_prompt(title, title_type)
-    example = example_by_type(title_type)
     ask_text = f"The following is a transcript of the video '{title}':\n{text}\n\nNow, base don the transcript, continue writing summary below:\n{summary}"
 
     print(f"Querying OpenAI for summary of '{title}'...")
     result = openai.Completion.create(
-        engine="text-davinci-002",
-        temperature=0, max_tokens=512,   
-        prompt=ask_text
+        engine="text-davinci-002", temperature=0, max_tokens=512, prompt=ask_text
     )
     print(f"Done!")
-    return ask_text, result.choices[0]['text']
+    return ask_text, result.choices[0]["text"]
+
 
 def gpt3_summarize_distill(title, title_type, summary):
     ask_text = f"Summarize the following transcript of a video titled '{title}'. Keep it short as possible.\n\nTranscript:\n{summary}\n\nOutput:"
 
     print(f"Querying OpenAI for summary of '{title}'...")
     result = openai.Completion.create(
-        engine="text-davinci-002",
-        temperature=0, max_tokens=512,
-        prompt=ask_text
+        engine="text-davinci-002", temperature=0, max_tokens=512, prompt=ask_text
     )
     print(f"Done!")
-    return ask_text, result.choices[0]['text']
+    return ask_text, result.choices[0]["text"]
 
-def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
-   
+
+def summarize(video_id: str, title_type: TitleType = TitleType.GENERAL):
+
     # Get the transcript
     cc = YouTubeTranscriptApi.get_transcript(video_id)
     cc_texts = [c["text"] for c in cc]
     text = " ".join(cc_texts)
-    text = text.replace("\n", " ")      # Remove newlines
-    orig_text = re.sub(r"\s+", " ", text)    # Remove double spaces
+    text = text.replace("\n", " ")  # Remove newlines
+    orig_text = re.sub(r"\s+", " ", text)  # Remove double spaces
 
-    text = preproc_by_type(orig_text, title_type)
+    text = orig_text
 
-    # Get the title of the YouTube video 
+    # Get the title of the YouTube video
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     r = requests.get(video_url)
     soup = BeautifulSoup(r.text, "html.parser")
@@ -141,7 +122,6 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
 
     # Get the thumbnail
     thumbnail_url = "https://img.youtube.com/vi/" + video_id + "/0.jpg"
-
 
     print(f"Video ID:    {video_id}")
     print(f"Video url:   {video_url}")
@@ -158,7 +138,7 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
     is_split = len(tokens) > MAX_TOKENS
     if is_split:
         print("Input is very long, splitting into chunks...")
-        chunks = [tokens[i:i+MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
+        chunks = [tokens[i : i + MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
         chunks = [" ".join(c) for c in chunks]
         prompts = []
         summaries = []
@@ -167,7 +147,9 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
                 prompt, summary = gpt3_summarize(title, title_type, chunk)
             else:
                 summary_cat = " ".join(summaries)
-                prompt, summary = gpt3_summarize_cont(title, title_type, chunk, summary_cat)
+                prompt, summary = gpt3_summarize_cont(
+                    title, title_type, chunk, summary_cat
+                )
             prompts.append(prompt)
             summaries.append(summary)
         summary = " ".join(summaries)
@@ -178,7 +160,7 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
             prompt, summary = gpt3_summarize_distill(title, title_type, summary)
             print(f"Distilled summary: \n{summary}")
             prompts.append(prompt)
-            
+
     else:
         prompt, summary = gpt3_summarize(title, title_type, text)
         prompts = [prompt]
@@ -193,7 +175,7 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
         "orig_text": orig_text,
         "proc_text": text,
         "prompts": prompts,
-        "summary": summary
+        "summary": summary,
     }
     result_path = "./results"
     if not os.path.exists(result_path):
@@ -216,9 +198,12 @@ def summarize(video_id:str, title_type:TitleType=TitleType.GENERAL):
     # with open("summary.html", "w") as f:
     #     f.write(html)
 
-def title_type_str_to_enum(title_type_str:str):
+
+def title_type_str_to_enum(title_type_str: str):
     if title_type_str == "top10":
         return TitleType.TOP_10
+    elif title_type_str == "top5":
+        return TitleType.TOP_5
     elif title_type_str == "top15":
         return TitleType.TOP_15
     elif title_type_str == "top20":
@@ -232,11 +217,18 @@ def title_type_str_to_enum(title_type_str:str):
     else:
         raise Exception(f"Unknown title type: {title_type_str}")
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Summarize a YouTube video with GPT-3')
-    parser.add_argument('--video_id', type=str, required=True,
-                        help='Video id of YouTube video')
-    parser.add_argument('--title_type', type=str, default="general", help='Title type of the video. Choose from "top10", "top15", "top20", "explained", "question", "general"')
+    parser = argparse.ArgumentParser(description="Summarize a YouTube video with GPT-3")
+    parser.add_argument(
+        "--video_id", type=str, required=True, help="Video id of YouTube video"
+    )
+    parser.add_argument(
+        "--title_type",
+        type=str,
+        default="general",
+        help='Title type of the video. Choose from "top10", "top15", "top20", "explained", "question", "general"',
+    )
     args = parser.parse_args()
 
     v_id = args.video_id
@@ -245,7 +237,6 @@ def main():
     t_type = title_type_str_to_enum(args.title_type)
     summarize(v_id, t_type)
 
+
 if __name__ == "__main__":
     main()
-
-
