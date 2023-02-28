@@ -7,9 +7,9 @@ authors = ["Cypress Frankenfeld <iamcypress@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 youtube-transcript-api = "^0.5.0"
-bs4 = "^0.0.1"
 openai = "^0.26.1"
 toml = "^0.10.2"
+beautifulsoup4 = "^4.11.2"
 
 [tool.poetry.dev-dependencies]
 
