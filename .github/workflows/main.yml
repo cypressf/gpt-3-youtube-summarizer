@@ -18,10 +18,8 @@ jobs:
         run: poetry install
       - name: deploy
         run: |
-          cd $LD_LIBRARY_PATH
-          ls
-          ls python3.9/site-packages
-          # zip -r ../../../../temp.zip .
-          # cd ../../../../
-          # zip -g temp.zip lambda_function.py
-          # aws lambda update-function-code --function-name summarize --zip-file fileb://temp.zip
+          cd `poetry env info --path`
+          zip -r ~/temp.zip .
+          cd -
+          zip -g ~/temp.zip lambda_function.py
+          aws lambda update-function-code --function-name summarize --zip-file fileb://~/temp.zip
