@@ -1,3 +1,4 @@
 **/secret.toml
 results/*
 .env
+__pycache__
