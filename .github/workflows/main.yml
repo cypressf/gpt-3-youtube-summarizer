@@ -1,0 +1,19 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy_lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Poetry Install
+        run: poetry install
+      - name: deploy
+        run: |
+          cd .venv/lib/python3.9/site-packages/
+          zip -r ../../../../temp.zip .
+          cd ../../../../
+          zip -g temp.zip lambda_function.py
+          aws lambda update-function-code --function-name summarize --zip-file fileb://temp.zip
